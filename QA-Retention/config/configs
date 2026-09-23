@@ -1,0 +1,41 @@
+[DEFAULT]
+Base_URL_APP= https://dialpadbeta.com/app
+ACTIVE_CALLS_API= https://dialpadbeta.com/api/activecalls/me
+DUTY_STATUS = https://dialpadbeta.com/api/user/me
+
+[CLIENT SECRETS]
+CLIENT_ID = qWNGktKHPLK8KxaK5LSTrNFVe
+CLIENT_SECRET = F2uH79Qc7FbnFdHwpjvTrFbsPSbbQy5QntwjwzMGUzvyeEusTe
+
+[TOKENS]
+DEPARTMENT_OPERATOR_TOKEN = DkwmvZWgLQ3XfBKrLZxYcnPKApgxxzLCsQYgfwQkr5jfGUUp7SDBbaTwBjhZ36wd9aEzvZcyvYGxhSJndhDTbF8tdrLsRMNg6Bm9
+
+retention.user145@gmail.com = khpcgCwxBYKAXGYRjUyF5rfQp6DFzDTLg7uCA5GqSZKXnUCg3h9LmcsbGzBUq9TMsnb95RR7UnzYXLjJG4TGQHGqDEStFgQgtQ7Q
+retention.user146@gmail.com = NXamDufXhVTJJy4jJYLb2sE5mBSVWaSt4g5ug8TQPTzMjDmZXEtT4xnewWa6nLp6wCswgGQgLn63U4NgBxCUvVDF3zrYE38T7FDa
+
+retention.user142@gmail.com = dbbaLxvytnW8KjfHguAQtT2W8CuC7FKhVsJtRsFd4rLvYAN6ek66usG9unE8P6JW8kcQp8bc5KB4GRqKs3QjRBm4JatLNGVwFU2T
+retention.user141@gmail.com = ehun9MtK4cmTJPzWpDawVngTt8tFhW3hnDXrFyy5VgYG2GNe7w9QTuyMzetTTUBEeNy3MydvqattGs3SvjY3pBGgxMvyGHyR2zct
+
+retention.user143@gmail.com = x5s8WEerW74JmSzP7U2ccjX7bB3sy5rGpRVxHMcmqxvGBz6zqn8RKqW9GvaVpWSDLQahYAxD4t34BMMZuaFsub38RhAtZKGC7kSc
+retention.user147@gmail.com = Bfv54fdJaS4beJWXsvDgZ3y6z3rkacFXK44YgXhXdJ84gm4nWnxF2LUFqUt46mTFRsyhgSsD4VESN6MN8mm6dDSHqtk4rpjSapHH
+
+[USER ID]
+retention.user141@gmail.com = 6094561825914880
+retention.user142@gmail.com = 5354730355294208
+retention.user143@gmail.com = 5997153687306240
+retention.user145@gmail.com = 6718901600780288
+retention.user146@gmail.com = 5017593047023616
+retention.user147@gmail.com = 6015067391918080
+
+
+[COMPANY TOKENS]
+
+retention.user143@gmail.com = xz34PfjrEx7YgnE24Gefa9F9bmTM9vdrdaMdyuu4tvuk9wQ9mYnsbYvHesUnsryykUwH5rwEnXJ9HFMrsjhYaWrUYNxSuBhBv56J
+retention.user147@gmail.com = xz34PfjrEx7YgnE24Gefa9F9bmTM9vdrdaMdyuu4tvuk9wQ9mYnsbYvHesUnsryykUwH5rwEnXJ9HFMrsjhYaWrUYNxSuBhBv56J
+
+
+retention.user142@gmail.com = 4ebfVX44jQDx7RmzzFULuRhdCyZ7fxReYELCbxePCqQ6BrcGGbe7anxyCRCWvRz34bmP8nKgCBRCNFtZntDaKVtVW8pAQxdp53pc
+retention.user141@gmail.com = 4ebfVX44jQDx7RmzzFULuRhdCyZ7fxReYELCbxePCqQ6BrcGGbe7anxyCRCWvRz34bmP8nKgCBRCNFtZntDaKVtVW8pAQxdp53pc
+
+retention.user145@gmail.com = 6kCQz7WGxnGUvbC496nVHhSXtMDPD78qpmZZ2XzCmtKujdKpNCGPxReXxeGqHEMuSCMSbDSJvfP9U3S7dmttYNzy9hkXCyvYJnBw
+retention.user146@gmail.com = 6kCQz7WGxnGUvbC496nVHhSXtMDPD78qpmZZ2XzCmtKujdKpNCGPxReXxeGqHEMuSCMSbDSJvfP9U3S7dmttYNzy9hkXCyvYJnBw

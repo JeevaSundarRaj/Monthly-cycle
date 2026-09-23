@@ -1,0 +1,19 @@
+{
+  "loginEmail": "//input[@name='email']",
+  "loginPassword": "//input[@name='password']",
+  "loginButton": "//button[@type='submit']",
+  "makeCallButton": "//button[@data-qa='header-cta-call']",
+  "callSearch": "//input[@id='search-input']",
+  "callButton": "//button[@id='new-call-make-call']",
+  "endCallButton": "//button[@aria-label='Hang up']",
+  "declineCallButton": "call-decline",
+  "answerCallButton": "//td[@id='call-incoming-answer']",
+  "newCallAsButton": "//li[@class='dropdown-menu-item']",
+  "messageInput": "//div[contains(@aria-label,'message-input')]",
+  "messageSendButton": "//button[@data-qa='dt-split-button-start']",
+  "callAs": "//*[contains(text(),'{}')]/ancestor::li[@role='menuitem']",
+  "activeCall": "//div[contains(@class,'callbar-floating__control-buttons')]",
+  "contactRow": "//a[@data-qa='contact-row' and @title='{}']",
+  "conversationEmptyState": "div.infinite-list-empty",
+  "feedItemText": "[data-qa='dp-feed-item-row--content'] .d-ws-pre-wrap"
+}
