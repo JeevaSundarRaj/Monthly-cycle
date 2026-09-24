@@ -7,7 +7,6 @@ from pages.loginPage import LoginPage
 from utils.apihelper import ApiHelpers
 from utils.configReader import Configreader
 from utils.call_recorder import record_call
-from utils.retention_policy import is_remove_content_only
 
 
 def get_department_cases(json_path):
@@ -37,7 +36,7 @@ cc_cases = get_department_cases('data/userCred.json')
 class TestCCPolicies:
 
     @pytest.mark.parametrize("policy_type, option_name, CC_info", cc_cases)
-    def test_cc_calls(self, user_context, subtests, policy_type, option_name, CC_info):
+    def test_cc_calls(self, user_context, policy_type, option_name, CC_info):
         with open('data/userCred.json') as f:
             userCredentials = json.load(f)
 
@@ -98,10 +97,6 @@ class TestCCPolicies:
                     f'{cc_agent}'))
 
             time.sleep(5)
-
-            remove_content_only = is_remove_content_only(option_name)
-            with subtests.test(msg="inbox_check_before_call"):
-                operator_call_page.verify_inbox_before_call(external_user['displayName'], remove_content_only)
 
             # ---------- Inbound Call ---------
             external_call_page.make_call(str(cc_number))

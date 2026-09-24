@@ -124,7 +124,7 @@ class DpAppPage:
         print("Playback finished.")
 
     def verify_inbox_before_call(self, contact_name, remove_content_only):
-        contact_locator = self.page.locator(self.locators['contactRow'].format(contact_name))
+        contact_locator = self.page.get_by_text(contact_name, exact=True)
 
         self._dismiss_blocking_modal()
 
