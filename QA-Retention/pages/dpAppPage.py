@@ -1,10 +1,19 @@
 from playwright.sync_api import Page
 import os
 import json
+import re
 import time
 import pyperclipimg as pci
 import sounddevice as sd
 import soundfile as sf
+
+
+class EntityNotAccessibleError(Exception):
+    """Raised when the operator does not have visibility into the requested entity."""
+
+
+class AllTabNotAvailableError(Exception):
+    """Raised when the 'All' tab is not available for the current operator (e.g. non-admin)."""
 
 
 class DpAppPage:
@@ -69,11 +78,32 @@ class DpAppPage:
             modal.wait_for(state="visible", timeout=timeout)
         except Exception:
             return
+
         self.page.keyboard.press("Escape")
         try:
             modal.wait_for(state="hidden", timeout=5000)
+            return
         except Exception:
             pass
+
+        # Some modals ignore Escape and require an explicit close/dismiss
+        # click instead.
+        close_button = modal.get_by_role("button", name=re.compile("close|dismiss|cancel|got it|ok", re.I)).first
+        try:
+            close_button.click(timeout=3000)
+            modal.wait_for(state="hidden", timeout=5000)
+        except Exception:
+            pass
+
+    def _click_with_modal_dismiss(self, locator, attempts=3, timeout=10000):
+        for attempt in range(attempts):
+            try:
+                locator.click(timeout=timeout)
+                return
+            except Exception:
+                if attempt == attempts - 1:
+                    raise
+                self._dismiss_blocking_modal()
 
     def new_call_as(self):
         self.page.locator(self.locators['newCallAsButton']).click()
@@ -123,40 +153,135 @@ class DpAppPage:
         sd.wait()
         print("Playback finished.")
 
-    def verify_inbox_before_call(self, contact_name, remove_content_only):
-        contact_locator = self.page.get_by_text(contact_name, exact=True)
+    def _scroll_to_and_click_link(self, name, timeout=20000):
+        # Departments/Coaching Teams children render asynchronously after the
+        # section is expanded, so wait directly on the target rather than
+        # polling via an unrelated scroll container.
+        target = self.page.get_by_role("link", name=re.compile(re.escape(name))).first
+        try:
+            target.wait_for(state="visible", timeout=timeout)
+        except Exception:
+            raise EntityNotAccessibleError(
+                f"'{name}' was not found in the list — operator is not part of it"
+            )
 
+        target.scroll_into_view_if_needed(timeout=15000)
+        self._click_with_modal_dismiss(target)
+
+    def open_contact_center(self, cc_name, timeout=20000):
         self._dismiss_blocking_modal()
+        self._click_with_modal_dismiss(self.page.get_by_role("link", name=re.compile(r"Contact Centers")))
+
+        # The "My contact centers" list is a management table, not a link
+        # list — rows are plain text, so they must be matched by text. A
+        # plain page-wide text match is ambiguous: if this CC has ever
+        # appeared in "Recents" (e.g. from a prior test call routed through
+        # it), that leftover conversation row also matches the same text and
+        # can win instead of the actual management-table row. Scope the
+        # match to the table's title cell to avoid picking the wrong one.
+        target = self.page.locator("[data-qa='dt-item-layout-title-wrapper']").get_by_text(cc_name, exact=True).first
+        try:
+            target.wait_for(state="visible", timeout=timeout)
+        except Exception:
+            raise EntityNotAccessibleError(
+                f"'{cc_name}' was not found in the Contact Centers list — operator is not part of it"
+            )
+
+        target.scroll_into_view_if_needed(timeout=15000)
+        self._click_with_modal_dismiss(target)
+        time.sleep(2)
+
+    def open_coaching_team(self, ct_name):
+        self._dismiss_blocking_modal()
+        self._click_with_modal_dismiss(self.page.get_by_role("button", name="Coaching Teams", exact=True))
+        self._scroll_to_and_click_link(ct_name)
+        time.sleep(2)
+
+    def open_department(self, department_name):
+        self._dismiss_blocking_modal()
+        self._click_with_modal_dismiss(self.page.get_by_role("button", name="Departments", exact=True))
+        self._scroll_to_and_click_link(department_name)
+        time.sleep(2)
+
+    def _open_conversation_row(self, contact_name, entity_name):
+        target = self.page.locator(self.locators['contactRow'].format(contact_name))
 
         anchor_row = self.page.locator("[data-qa='dp-general-row']").first
         anchor_row.wait_for(state="visible", timeout=15000)
         anchor_row.hover()
         for _ in range(30):
-            if contact_locator.count() > 0 and contact_locator.first.is_visible():
+            if target.count() > 0 and target.is_visible():
                 break
             self.page.mouse.wheel(0, 400)
             time.sleep(0.3)
 
-        contact_locator.first.scroll_into_view_if_needed(timeout=15000)
-        contact_locator.first.click()
+        if target.count() == 0 or not target.is_visible():
+            raise EntityNotAccessibleError(
+                f"'{contact_name}' conversation was not found in the All tab for '{entity_name}'"
+            )
+
+        target.scroll_into_view_if_needed(timeout=15000)
+        self._click_with_modal_dismiss(target)
         time.sleep(2)
+
+    def verify_retention_in_all_tab(self, entity_name, remove_content_only, contact_name):
+        all_tab = self.page.get_by_role("tab", name="All", exact=True)
+        try:
+            all_tab.wait_for(state="visible", timeout=5000)
+        except Exception:
+            raise AllTabNotAvailableError(
+                f"'All' tab is not available for '{entity_name}' — operator is likely non-admin"
+            )
+        all_tab.click()
+        time.sleep(2)
+
+        self._open_conversation_row(contact_name, entity_name)
 
         is_empty = self.page.locator(self.locators['conversationEmptyState']).is_visible()
 
         if remove_content_only:
             assert not is_empty, (
-                f"Expected call titles to remain for '{contact_name}' under the Remove Content policy, "
-                f"but the conversation is completely empty"
+                f"Expected call titles to remain for '{entity_name}' under the Remove Content policy, "
+                f"but the conversation list is completely empty"
             )
             content_count = self.page.locator(self.locators['feedItemText']).count()
             assert content_count == 0, (
-                f"Expected no message content for '{contact_name}' under the Remove Content policy, "
+                f"Expected no message content for '{entity_name}' under the Remove Content policy, "
                 f"but found {content_count} content item(s)"
             )
-            print(f"Inbox check passed for '{contact_name}': titles present, no message content (Remove Content)")
+            print(f"All-tab check passed for '{entity_name}': titles present, no message content (Remove Content)")
         else:
             assert is_empty, (
-                f"Expected no information in the inbox for '{contact_name}', "
-                f"but the conversation still has entries"
+                f"Expected no information in the 'All' tab for '{entity_name}', "
+                f"but the conversation list still has entries"
             )
-            print(f"Inbox check passed for '{contact_name}': no information present")
+            print(f"All-tab check passed for '{entity_name}': no information present")
+
+    def verify_retention_in_recordings_tab(self, entity_name, remove_content_only):
+        self.page.get_by_role("tab", name="Recordings").click()
+        time.sleep(2)
+
+        no_recordings = self.page.get_by_text("You have no recordings", exact=False)
+
+        if remove_content_only:
+            assert not no_recordings.is_visible(), (
+                f"Expected a recording to remain for '{entity_name}' under the Remove Content policy, "
+                f"but the recordings list is empty"
+            )
+
+            recording_row = self.page.locator("[data-qa='dp-general-row']").first
+            recording_row.click()
+            time.sleep(2)
+
+            row_text = self.page.locator("[data-qa='dp-general-row']").first.inner_text()
+            assert "This recording has been deleted." in row_text, (
+                f"Expected the recording for '{entity_name}' to show as deleted under the Remove Content policy, "
+                f"but the first row read: '{row_text}'"
+            )
+            print(f"Recordings-tab check passed for '{entity_name}': recording shown as deleted (Remove Content)")
+        else:
+            assert no_recordings.is_visible(), (
+                f"Expected no recordings for '{entity_name}', "
+                f"but the recordings list still has entries"
+            )
+            print(f"Recordings-tab check passed for '{entity_name}': no recordings present")
