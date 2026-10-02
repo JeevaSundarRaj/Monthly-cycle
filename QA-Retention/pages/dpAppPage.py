@@ -274,6 +274,15 @@ class DpAppPage:
 
         return None
 
+    @staticmethod
+    def _wait_visible(locator, timeout=10000):
+        """Wait for the locator to become visible; return whether it did."""
+        try:
+            locator.wait_for(state="visible", timeout=timeout)
+            return True
+        except Exception:
+            return False
+
     def verify_retention_in_all_tab(self, entity_name, remove_content_only, contact_name):
         all_tab = self._all_tab()
         try:
@@ -286,7 +295,13 @@ class DpAppPage:
         time.sleep(2)
 
         opened = self._open_conversation_row(contact_name, entity_name)
-        is_empty = opened is not None and self.page.locator(self.locators['conversationEmptyState']).is_visible()
+        empty_state = self.page.locator(self.locators['conversationEmptyState']).first
+        content_items = self.page.locator(self.locators['feedItemText'])
+        is_empty = False
+        if opened is not None:
+            # Wait for the pane to settle on either the empty state or rendered feed items.
+            self._wait_visible(empty_state.or_(content_items.first), 10000)
+            is_empty = empty_state.is_visible()
 
         # A non-corona first row only tells us something when it is an empty
         # "Your conversation with X will appear here" pane (and the policy
@@ -303,7 +318,10 @@ class DpAppPage:
                 f"but the conversation list is completely empty"
             )
             # Call-title rows render empty .d-ws-pre-wrap nodes; only real text is content.
-            content_items = self.page.locator(self.locators['feedItemText'])
+            assert content_items.count() > 0, (
+                f"No feed items rendered for '{entity_name}' under the Remove Content policy; "
+                f"cannot verify content removal"
+            )
             content_count = sum(
                 1 for i in range(content_items.count()) if content_items.nth(i).inner_text().strip()
             )
@@ -321,24 +339,25 @@ class DpAppPage:
 
     def verify_retention_in_recordings_tab(self, entity_name, remove_content_only):
         self.page.get_by_role("tab", name="Recordings").click()
-        time.sleep(2)
 
-        no_recordings = self.page.get_by_text("You have no recordings", exact=False)
+        no_recordings = self.page.get_by_text("You have no recordings", exact=False).first
+        # Each recording row shows its deleted notice inline.
+        deleted_notice = self.page.get_by_text("This recording has been deleted.").first
 
         if remove_content_only:
+            # Wait for the list to settle on either outcome before asserting.
+            self._wait_visible(no_recordings.or_(deleted_notice), 10000)
             assert not no_recordings.is_visible(), (
                 f"Expected a recording to remain for '{entity_name}' under the Remove Content policy, "
                 f"but the recordings list is empty"
             )
-
-            # Each recording row shows its deleted notice inline.
-            deleted_notice = self.page.get_by_text("This recording has been deleted.").first
             assert deleted_notice.is_visible(), (
                 f"Expected the recording for '{entity_name}' to show as deleted under the Remove Content policy, "
                 f"but no 'This recording has been deleted.' notice is visible"
             )
             print(f"Recordings-tab check passed for '{entity_name}': recording shown as deleted (Remove Content)")
         else:
+            self._wait_visible(no_recordings, 10000)
             assert no_recordings.is_visible(), (
                 f"Expected no recordings for '{entity_name}', "
                 f"but the recordings list still has entries"

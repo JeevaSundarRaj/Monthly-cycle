@@ -95,8 +95,7 @@ def _verify_retention_for_operator(user_context, operator_username, entities):
         assert external_user, "No external user credentials found in JSON"
         corona_contact_name = external_user["displayName"]
 
-        skipped_reasons = []
-        checked_any = False
+        failures = []
 
         for entity_type, entity_name in entities:
             option_name = entity_policies.get(entity_name)
@@ -114,13 +113,13 @@ def _verify_retention_for_operator(user_context, operator_username, entities):
                     operator_call_page.verify_retention_in_all_tab(entity_name, remove_content_only, corona_contact_name)
                 else:
                     raise ValueError(f"Unknown entity_type: {entity_type}")
-                checked_any = True
-            except (EntityNotAccessibleError, AllTabNotAvailableError) as e:
-                print(f"Skipping {entity_type} '{entity_name}': {e}")
-                skipped_reasons.append(str(e))
+            except (EntityNotAccessibleError, AllTabNotAvailableError, AssertionError) as e:
+                # OPERATOR_PLAN lists only entities the operator should reach, so
+                # inaccessibility is a failure, not a skip. Keep checking the rest.
+                print(f"FAILED {entity_type} '{entity_name}': {e}")
+                failures.append(f"{entity_type} '{entity_name}': {e}")
 
-        if not checked_any:
-            pytest.skip("; ".join(skipped_reasons) or "No entities were accessible for this operator")
+        assert not failures, f"{len(failures)} retention check(s) failed for {operator_username}:\n" + "\n".join(failures)
 
     finally:
         if operator_user_page:
