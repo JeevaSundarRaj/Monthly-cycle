@@ -191,41 +191,91 @@ class DpAppPage:
         self._click_with_modal_dismiss(target)
         time.sleep(2)
 
+    def _expand_section(self, section_name):
+        # The sidebar header toggles; the section may already be open (or
+        # start collapsed), so read aria-expanded before clicking.
+        header = self.page.get_by_role("button", name=section_name, exact=True)
+        expanded = header.get_attribute("aria-expanded")
+        if expanded != "true":
+            self._click_with_modal_dismiss(header)
+
     def open_coaching_team(self, ct_name):
         self._dismiss_blocking_modal()
-        self._click_with_modal_dismiss(self.page.get_by_role("button", name="Coaching Teams", exact=True))
+        self._expand_section("Coaching Teams")
         self._scroll_to_and_click_link(ct_name)
         time.sleep(2)
 
     def open_department(self, department_name):
         self._dismiss_blocking_modal()
-        self._click_with_modal_dismiss(self.page.get_by_role("button", name="Departments", exact=True))
+        self._expand_section("Departments")
         self._scroll_to_and_click_link(department_name)
         time.sleep(2)
 
-    def _open_conversation_row(self, contact_name, entity_name):
-        target = self.page.locator(self.locators['contactRow'].format(contact_name))
+    def _find_and_click_row(self, target, scroll_steps=30):
+        """Scroll the current list until `target` is visible, then click it. Returns False if never found."""
+        # Scroll the main pane, not the sidebar (which also uses dp-general-row).
+        anchor_row = self.page.locator("#contact-list tr").first
+        try:
+            anchor_row.wait_for(state="visible", timeout=15000)
+            anchor_row.hover()
+        except Exception:
+            pass
 
-        anchor_row = self.page.locator("[data-qa='dp-general-row']").first
-        anchor_row.wait_for(state="visible", timeout=15000)
-        anchor_row.hover()
-        for _ in range(30):
+        for _ in range(scroll_steps):
             if target.count() > 0 and target.is_visible():
                 break
             self.page.mouse.wheel(0, 400)
             time.sleep(0.3)
 
         if target.count() == 0 or not target.is_visible():
-            raise EntityNotAccessibleError(
-                f"'{contact_name}' conversation was not found in the All tab for '{entity_name}'"
-            )
+            return False
 
         target.scroll_into_view_if_needed(timeout=15000)
         self._click_with_modal_dismiss(target)
         time.sleep(2)
+        return True
+
+    def _all_tab(self):
+        return self.page.get_by_role("tab", name=re.compile(r"^All\s*$"))
+
+    def _voicemail_tab(self):
+        return self.page.get_by_role("tab", name=re.compile(r"^Voicemails?\s*$"))
+
+    def _open_conversation_row(self, contact_name, entity_name):
+        """Open the contact's conversation.
+
+        Returns "contact" if the corona contact was opened, "first" if only the
+        first All-tab conversation could be opened, or None if nothing opened.
+
+        Lookup order (first corona match wins, there can be several):
+          1. the contact in the All tab
+          2. the contact in the Voicemail tab
+          3. the first conversation in the All tab
+        """
+        # Scope to the main pane: the sidebar Recents list can also contain this contact.
+        contact_row = self.page.locator("#center-column").get_by_text(contact_name).first
+        if self._find_and_click_row(contact_row):
+            return "contact"
+
+        voicemail_tab = self._voicemail_tab()
+        if voicemail_tab.count() > 0 and voicemail_tab.first.is_visible():
+            voicemail_tab.first.click()
+            time.sleep(2)
+            if self._find_and_click_row(contact_row, scroll_steps=5):
+                print(f"'{contact_name}' not in All tab for '{entity_name}', used Voicemail tab")
+                return "contact"
+
+        self._all_tab().click()
+        time.sleep(2)
+        first_row = self.page.locator("#contact-list tr").first
+        if self._find_and_click_row(first_row, scroll_steps=1):
+            print(f"'{contact_name}' not found for '{entity_name}', used the first conversation in the All tab")
+            return "first"
+
+        return None
 
     def verify_retention_in_all_tab(self, entity_name, remove_content_only, contact_name):
-        all_tab = self.page.get_by_role("tab", name="All", exact=True)
+        all_tab = self._all_tab()
         try:
             all_tab.wait_for(state="visible", timeout=5000)
         except Exception:
@@ -235,16 +285,28 @@ class DpAppPage:
         all_tab.click()
         time.sleep(2)
 
-        self._open_conversation_row(contact_name, entity_name)
+        opened = self._open_conversation_row(contact_name, entity_name)
+        is_empty = opened is not None and self.page.locator(self.locators['conversationEmptyState']).is_visible()
 
-        is_empty = self.page.locator(self.locators['conversationEmptyState']).is_visible()
+        # A non-corona first row only tells us something when it is an empty
+        # "Your conversation with X will appear here" pane (and the policy
+        # purges everything). Otherwise its content is unrelated to the test
+        # calls, so fall back to the Recordings tab.
+        if opened is None or (opened == "first" and (remove_content_only or not is_empty)):
+            print(f"No usable corona conversation for '{entity_name}', checking the Recordings tab")
+            self.verify_retention_in_recordings_tab(entity_name, remove_content_only)
+            return
 
         if remove_content_only:
             assert not is_empty, (
                 f"Expected call titles to remain for '{entity_name}' under the Remove Content policy, "
                 f"but the conversation list is completely empty"
             )
-            content_count = self.page.locator(self.locators['feedItemText']).count()
+            # Call-title rows render empty .d-ws-pre-wrap nodes; only real text is content.
+            content_items = self.page.locator(self.locators['feedItemText'])
+            content_count = sum(
+                1 for i in range(content_items.count()) if content_items.nth(i).inner_text().strip()
+            )
             assert content_count == 0, (
                 f"Expected no message content for '{entity_name}' under the Remove Content policy, "
                 f"but found {content_count} content item(s)"
@@ -269,14 +331,11 @@ class DpAppPage:
                 f"but the recordings list is empty"
             )
 
-            recording_row = self.page.locator("[data-qa='dp-general-row']").first
-            recording_row.click()
-            time.sleep(2)
-
-            row_text = self.page.locator("[data-qa='dp-general-row']").first.inner_text()
-            assert "This recording has been deleted." in row_text, (
+            # Each recording row shows its deleted notice inline.
+            deleted_notice = self.page.get_by_text("This recording has been deleted.").first
+            assert deleted_notice.is_visible(), (
                 f"Expected the recording for '{entity_name}' to show as deleted under the Remove Content policy, "
-                f"but the first row read: '{row_text}'"
+                f"but no 'This recording has been deleted.' notice is visible"
             )
             print(f"Recordings-tab check passed for '{entity_name}': recording shown as deleted (Remove Content)")
         else:

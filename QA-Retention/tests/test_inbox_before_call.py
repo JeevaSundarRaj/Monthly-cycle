@@ -13,57 +13,66 @@ def _load_user_credentials():
         return json.load(f)
 
 
-def get_operator_cases(json_path):
-    """Group CC/CT/Department entities by the operator who can see them.
+# Entities each operator can see, listed once overall: an entity another
+# operator already covers is skipped (user142 is fully covered by user141 and
+# user143; user147's CT 01/02 are covered by user143).
+OPERATOR_PLAN = [
+    ("retention.user141@gmail.com", [
+        ("CT", "Dialpad Retention 02 CT 01"),
+        ("CT", "Dialpad Retention 02 CT 02"),
+        ("CC", "Dialpad Retention 02 CC 01"),
+        ("Department", "Dialpad Retention 02 Dept 01"),
+        ("Department", "Dialpad Retention 02 Dept 02"),
+    ]),
+    ("retention.user143@gmail.com", [
+        ("CC", "Dialpad Retention 01 CC 01"),
+        ("CT", "Dialpad Retention 01 CT 01"),
+        ("CT", "Dialpad Retention 01 CT 02"),
+        ("Department", "Dialpad Retention 01 Dept 02"),
+    ]),
+    ("retention.user145@gmail.com", [
+        ("CT", "Dialpad Retention 03 CT 01"),
+        ("CT", "Dialpad Retention 03 CT 02"),
+        ("Department", "Dialpad Retention 03 Dept 02"),
+    ]),
+    ("retention.user146@gmail.com", [
+        ("CC", "Dialpad Retention 03 CC 01"),
+        ("Department", "Dialpad Retention 03 Dept 01"),
+    ]),
+    ("retention.user147@gmail.com", [
+        ("Department", "Dialpad Retention 01 Dept 01"),
+    ]),
+]
 
-    Several entities in a policy option share the same operator (e.g. the
-    department operator is often also the CT trainee), so grouping lets a
-    single login check every entity that operator has access to instead of
-    logging in once per entity.
-    """
+
+def get_entity_policies(json_path):
+    """Map each entity name to the policy option that governs it (first occurrence wins)."""
     with open(json_path, 'r') as f:
         data = json.load(f)
 
-    cases = []
-
+    policies = {}
     for policy_type in ("individual_policies", "inherited_policies"):
-        for option_name, policy_details in data.get(policy_type, {}).items():
-            if not isinstance(policy_details, dict):
+        for option_name, details in data.get(policy_type, {}).items():
+            if not isinstance(details, dict):
                 continue
-
-            entities_by_operator = {}
-
-            department_info = policy_details.get("Department") or policy_details.get("Departments")
-            if department_info:
-                operator = department_info.get("Dep operator")
-                name = department_info.get("Department Name")
-                if operator and name:
-                    entities_by_operator.setdefault(operator, []).append(("Department", name))
-
-            cc_info = policy_details.get("CC")
-            if cc_info:
-                operator = cc_info.get("CC Agent")
-                name = cc_info.get("CC Name")
-                if operator and name:
-                    entities_by_operator.setdefault(operator, []).append(("CC", name))
-
-            ct_info = policy_details.get("CT")
-            if ct_info:
-                operator = ct_info.get("Trainee")
-                name = ct_info.get("Coaching team")
-                if operator and name:
-                    entities_by_operator.setdefault(operator, []).append(("CT", name))
-
-            for operator, entities in entities_by_operator.items():
-                cases.append((policy_type, option_name, operator, entities))
-
-    return cases
+            department = details.get("Department") or details.get("Departments") or {}
+            for name in (
+                department.get("Department Name"),
+                (details.get("CC") or {}).get("CC Name"),
+                (details.get("CT") or {}).get("Coaching team"),
+            ):
+                if name:
+                    policies.setdefault(name, option_name)
+    return policies
 
 
-operator_cases = get_operator_cases('data/userCred.json')
+entity_policies = get_entity_policies('data/userCred.json')
+# userCred.json lists this CT under Cleanup and Archive, but it is Remove Content only.
+entity_policies["Dialpad Retention 03 CT 02"] = "Option 2: Remove Content"
+operator_cases = [(operator, entities) for operator, entities in OPERATOR_PLAN]
 
 
-def _verify_retention_for_operator(user_context, operator_username, option_name, entities):
+def _verify_retention_for_operator(user_context, operator_username, entities):
     userCredentials = _load_user_credentials()
 
     operator_user_page = None
@@ -82,8 +91,6 @@ def _verify_retention_for_operator(user_context, operator_username, option_name,
             operator_call_page.hang_up()
             time.sleep(3)
 
-        remove_content_only = is_remove_content_only(option_name)
-
         external_user = userCredentials.get("external_user") or userCredentials.get("ExternalUser")
         assert external_user, "No external user credentials found in JSON"
         corona_contact_name = external_user["displayName"]
@@ -92,6 +99,9 @@ def _verify_retention_for_operator(user_context, operator_username, option_name,
         checked_any = False
 
         for entity_type, entity_name in entities:
+            option_name = entity_policies.get(entity_name)
+            assert option_name, f"No policy option found in userCred.json for '{entity_name}'"
+            remove_content_only = is_remove_content_only(option_name)
             try:
                 if entity_type == "CC":
                     operator_call_page.open_contact_center(entity_name)
@@ -119,12 +129,11 @@ def _verify_retention_for_operator(user_context, operator_username, option_name,
 
 class TestRetentionByOperator:
 
-    @pytest.mark.parametrize("policy_type, option_name, operator, entities", operator_cases)
-    def test_retention_by_operator(self, user_context, policy_type, option_name, operator, entities):
+    @pytest.mark.parametrize("operator, entities", operator_cases)
+    def test_retention_by_operator(self, user_context, operator, entities):
         entity_labels = ", ".join(f"{entity_type}:{entity_name}" for entity_type, entity_name in entities)
         print(
-            f"\n--- Running retention check for Policy Type: '{policy_type}', "
-            f"Option: '{option_name}', Operator: '{operator}' ({entity_labels}) ---"
+            f"\n--- Running retention check for Operator: '{operator}' ({entity_labels}) ---"
         )
 
-        _verify_retention_for_operator(user_context, operator, option_name, entities)
+        _verify_retention_for_operator(user_context, operator, entities)
