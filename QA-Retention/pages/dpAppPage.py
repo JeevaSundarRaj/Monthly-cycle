@@ -244,13 +244,12 @@ class DpAppPage:
     def _open_conversation_row(self, contact_name, entity_name):
         """Open the contact's conversation.
 
-        Returns "contact" if the corona contact was opened, "first" if only the
-        first All-tab conversation could be opened, or None if nothing opened.
+        Returns "contact" if the corona contact was opened, or None if it was
+        not found in either tab (the caller then tries the Recordings tab).
 
         Lookup order (first corona match wins, there can be several):
           1. the contact in the All tab
           2. the contact in the Voicemail tab
-          3. the first conversation in the All tab
         """
         # Scope to the main pane: the sidebar Recents list can also contain this contact.
         contact_row = self.page.locator("#center-column").get_by_text(contact_name).first
@@ -261,16 +260,12 @@ class DpAppPage:
         if voicemail_tab.count() > 0 and voicemail_tab.first.is_visible():
             voicemail_tab.first.click()
             time.sleep(2)
-            if self._find_and_click_row(contact_row, scroll_steps=5):
+            if self._find_and_click_row(contact_row):
                 print(f"'{contact_name}' not in All tab for '{entity_name}', used Voicemail tab")
                 return "contact"
-
-        self._all_tab().click()
-        time.sleep(2)
-        first_row = self.page.locator("#contact-list tr").first
-        if self._find_and_click_row(first_row, scroll_steps=1):
-            print(f"'{contact_name}' not found for '{entity_name}', used the first conversation in the All tab")
-            return "first"
+            print(f"'{contact_name}' not found in the Voicemail tab for '{entity_name}' either")
+        else:
+            print(f"No Voicemail tab for '{entity_name}'")
 
         return None
 
@@ -295,22 +290,26 @@ class DpAppPage:
         time.sleep(2)
 
         opened = self._open_conversation_row(contact_name, entity_name)
+        if opened is None:
+            recordings_tab = self.page.get_by_role("tab", name="Recordings")
+            if recordings_tab.count() > 0 and recordings_tab.first.is_visible():
+                print(f"'{contact_name}' not found for '{entity_name}', checking the Recordings tab")
+                self.verify_retention_in_recordings_tab(entity_name, remove_content_only)
+                return
+            # No Recordings tab: the contact being absent from both the All and
+            # Voicemail tabs is the expected result of a full purge.
+            assert not remove_content_only, (
+                f"Expected call titles to remain for '{entity_name}' under the Remove Content policy, "
+                f"but '{contact_name}' is absent from both the All and Voicemail tabs"
+            )
+            print(f"All-tab check passed for '{entity_name}': '{contact_name}' absent from All and Voicemail tabs (purged)")
+            return
+
         empty_state = self.page.locator(self.locators['conversationEmptyState']).first
         content_items = self.page.locator(self.locators['feedItemText'])
-        is_empty = False
-        if opened is not None:
-            # Wait for the pane to settle on either the empty state or rendered feed items.
-            self._wait_visible(empty_state.or_(content_items.first), 10000)
-            is_empty = empty_state.is_visible()
-
-        # A non-corona first row only tells us something when it is an empty
-        # "Your conversation with X will appear here" pane (and the policy
-        # purges everything). Otherwise its content is unrelated to the test
-        # calls, so fall back to the Recordings tab.
-        if opened is None or (opened == "first" and (remove_content_only or not is_empty)):
-            print(f"No usable corona conversation for '{entity_name}', checking the Recordings tab")
-            self.verify_retention_in_recordings_tab(entity_name, remove_content_only)
-            return
+        # Wait for the pane to settle on either the empty state or rendered feed items.
+        self._wait_visible(empty_state.or_(content_items.first), 10000)
+        is_empty = empty_state.is_visible()
 
         if remove_content_only:
             assert not is_empty, (
