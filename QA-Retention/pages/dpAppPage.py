@@ -3,7 +3,6 @@ import os
 import json
 import re
 import time
-import pyperclipimg as pci
 import sounddevice as sd
 import soundfile as sf
 
@@ -177,6 +176,7 @@ class DpAppPage:
         self.click(self.locators['messageSendButton']).click()
 
     def send_image_by_clipboard_paste(self):
+        import pyperclipimg as pci  # macOS-only; imported lazily so CI can collect tests
 
         pci.copy("data/test_image.jpg")
 
