@@ -31,7 +31,12 @@ jobs:
       - name: Write credentials
         env:
           USER_CRED_JSON: ${{ secrets.USER_CRED_JSON }}
-        run: printf '%s' "$USER_CRED_JSON" > data/userCred.json
+        run: |
+          printf '%s' "$USER_CRED_JSON" > data/userCred.json
+          echo "secret length: $(wc -c < data/userCred.json) bytes"
+          echo "first 6 bytes: $(head -c 6 data/userCred.json | od -An -c)"
+          python -m json.tool data/userCred.json > /dev/null \
+            || { echo "::error::USER_CRED_JSON secret is not valid JSON (empty, truncated, or duplicated braces)"; exit 1; }
 
       - name: Run tests
         run: pytest tests -m "not calls" -s
