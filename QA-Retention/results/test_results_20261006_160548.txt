@@ -1,0 +1,11 @@
+Test run 2026-10-06 16:05:48
+Summary: PASS=4, FAIL=0, ERROR=0, NOT AUTOMATED=0, SKIPPED=0, total=4
+
+[PASS] LCC: create card from template
+    tests/ai_cards/test_ai_settings.py::TestAiCardsFromTemplate::test_create_from_template[cm] (15.8s)
+[PASS] LCC: create card from template
+    tests/ai_cards/test_ai_settings.py::TestAiCardsFromTemplate::test_create_from_template[lcc] (15.7s)
+[PASS] LCC: preview/edit/delete card from template
+    tests/ai_cards/test_ai_settings.py::TestAiCardsFromTemplate::test_template_card_edit_delete[cm] (16.8s)
+[PASS] LCC: preview/edit/delete card from template
+    tests/ai_cards/test_ai_settings.py::TestAiCardsFromTemplate::test_template_card_edit_delete[lcc] (16.4s)

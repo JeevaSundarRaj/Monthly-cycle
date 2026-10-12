@@ -1,3 +1,4 @@
+import pytest
 import json
 
 from pages.loginPage import LoginPage
@@ -79,3 +80,15 @@ class TestAdminRetentionPolicySettings:
         finally:
             if admin_page:
                 admin_page.close()
+
+
+class TestRetentionPolicyGaps:
+    """Plan cases not automated yet; each skip names what is missing."""
+
+    @pytest.mark.skip(reason="TODO: Department/CT inherit the office policy - needs an office-policy flow in AdminRetentionPage")
+    def test_inherit_office_policy_for_department_and_ct(self, user_context):
+        ...
+
+    @pytest.mark.skip(reason="TODO: remove policy from the Retention Policy page - needs locators for that page")
+    def test_remove_policy_from_retention_policy_page(self, user_context):
+        ...

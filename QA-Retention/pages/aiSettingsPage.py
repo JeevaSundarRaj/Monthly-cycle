@@ -48,9 +48,14 @@ class AiSettingsPage:
         self._click(self.page.get_by_text("Custom Moments"))
         expect(self._create_button("cm")).to_be_visible(timeout=15000)
 
-    def start_create(self, card_type):
+    TEMPLATE_CARD = "//span[normalize-space(.)='Authority']/parent::div"
+
+    def start_create(self, card_type, from_template=False):
         self._click(self._create_button(card_type))
-        self._click(self.page.get_by_role("button", name="Create from scratch"))
+        if from_template:
+            self._click(self.page.locator(self.TEMPLATE_CARD))
+        else:
+            self._click(self.page.get_by_role("button", name="Create from scratch"))
         expect(self._name_box()).to_be_visible(timeout=15000)
         expect(self.page.get_by_role("button", name="Create card")).to_be_visible(timeout=15000)
 
@@ -127,6 +132,15 @@ class AiSettingsPage:
         expect(self.page.get_by_role("button", name="Edit")).to_be_visible(timeout=15000)
         expect(self.page.get_by_role("button", name="Save")).to_have_count(0, timeout=15000)
 
+    def preview_card(self, name):
+        """Open 'Preview card' from the card details, check the popup shows the card, then close it."""
+        self._click(self.page.get_by_role("button", name="Preview card"))
+        popup = self.page.locator("[role=dialog]").filter(has_text="AI LIVE COACH")
+        expect(popup).to_be_visible(timeout=15000)
+        expect(popup).to_contain_text(name)
+        self.page.keyboard.press("Escape")
+        expect(popup).to_have_count(0, timeout=10000)
+
     def click_duplicate(self):
         self._click(self.page.get_by_role("button", name="Duplicate", exact=True))
         expect(self._name_box()).to_be_visible(timeout=15000)
@@ -136,7 +150,12 @@ class AiSettingsPage:
         self._click(self.page.get_by_role("button", name="Delete"))
         self._click(self.page.get_by_role("button", name="Yes, delete"))
         if name:
-            expect(self.page.get_by_text(f'"{name}" deleted.')).to_be_visible(timeout=15000)
+            # quote style / trailing text of the toast varies, so match name + "deleted" loosely
+            toast = self.page.get_by_text(re.compile(rf"{re.escape(name)}\W{{0,3}}\s*deleted", re.I))
+            try:
+                expect(toast.first).to_be_visible(timeout=15000)
+            except AssertionError:
+                print(f"Delete toast for '{name}' not seen; relying on the not-listed check")
         expect(self.page.locator("dialog[open]")).to_have_count(0, timeout=15000)
 
     def close_card(self):

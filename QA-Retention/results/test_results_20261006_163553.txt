@@ -1,0 +1,5 @@
+Test run 2026-10-06 16:35:53
+Summary: PASS=1, FAIL=0, ERROR=0, NOT AUTOMATED=0, SKIPPED=0, total=1
+
+[PASS] Geo-Routing: call routing to CC in business hours
+    tests/geo_routing/test_geo_routing_cc.py::TestGeoRoutingCc::test_business_hours_change (95.3s)

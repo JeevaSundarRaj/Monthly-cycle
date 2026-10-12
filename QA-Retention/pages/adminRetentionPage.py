@@ -55,7 +55,12 @@ class AdminRetentionPage:
             days_field.wait_for(state="visible", timeout=15000)
             days_field.fill(str(days))
         self._click(self.page.get_by_role("button", name="Save Policy"))
-        self._click(self.page.get_by_role("button", name="Set Policy"))
+        confirm = self.page.get_by_role("button", name="Set Policy")
+        try:
+            confirm.wait_for(state="visible", timeout=10000)
+            self._click(confirm)
+        except Exception:
+            print("No 'Set Policy' confirmation shown; checking whether the policy saved directly")
         self._verify_toast("Retention policy saved")
         self._settle()
         self._pending_days = days

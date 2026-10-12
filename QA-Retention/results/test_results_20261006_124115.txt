@@ -1,0 +1,12 @@
+Test run 2026-10-06 12:41:15
+Summary: PASS=0, FAIL=0, ERROR=0, NOT AUTOMATED=3, SKIPPED=0, total=3
+
+[NOT AUTOMATED] CM & LCC: create card from template
+    tests/ai_cards/test_ai_settings.py::TestAiCardGaps::test_create_from_template (0.0s)
+    TODO: create card from template (live coach and custom) - need template name and page flow
+[NOT AUTOMATED] CM & LCC: preview live coach card
+    tests/ai_cards/test_ai_settings.py::TestAiCardGaps::test_live_coach_card_preview (0.0s)
+    TODO: Preview for a live coach card - no page-object method for Preview yet
+[NOT AUTOMATED] CM & LCC: preview/edit/delete card from template
+    tests/ai_cards/test_ai_settings.py::TestAiCardGaps::test_template_card_edit_delete (0.0s)
+    TODO: preview/edit/delete for a card created from a template - depends on template flow

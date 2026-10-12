@@ -129,7 +129,7 @@ def _verify_retention_for_operator(user_context, operator_username, entities):
 class TestRetentionByOperator:
 
     @pytest.mark.parametrize("operator, entities", operator_cases)
-    def test_retention_by_operator(self, user_context, operator, entities):
+    def test_check_inbox(self, user_context, operator, entities):
         entity_labels = ", ".join(f"{entity_type}:{entity_name}" for entity_type, entity_name in entities)
         print(
             f"\n--- Running retention check for Operator: '{operator}' ({entity_labels}) ---"

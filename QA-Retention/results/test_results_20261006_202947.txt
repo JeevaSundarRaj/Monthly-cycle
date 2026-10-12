@@ -1,0 +1,5 @@
+Test run 2026-10-06 20:29:47
+Summary: PASS=1, FAIL=0, ERROR=0, NOT AUTOMATED=0, SKIPPED=0, total=1
+
+[PASS] Geo-Routing: inbound call with Voice AI (enable/disable)
+    tests/geo_routing/test_geo_routing_cc.py::TestGeoRoutingCc::test_ai_on_off_transcription (97.4s)

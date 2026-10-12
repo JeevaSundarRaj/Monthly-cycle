@@ -1,0 +1,6 @@
+Test run 2026-10-06 20:27:04
+Summary: PASS=0, FAIL=0, ERROR=1, NOT AUTOMATED=0, SKIPPED=0, total=1
+
+[ERROR] Geo-Routing: inbound call with Voice AI (enable/disable)
+    tests/geo_routing/test_geo_routing_cc.py::TestGeoRoutingCc::test_ai_on_off_transcription (57.4s)
+    ../../../Downloads/QA-Retention/.venv/.venv/lib/python3.14/site-packages/playwright/_impl/_connection.py:558: TargetClosedError

@@ -24,9 +24,19 @@ class DpAppPage:
             self.locators = json.load(p)
 
     def make_call(self, phonenumber):
-        self.page.locator(self.locators['makeCallButton']).click()
-        self.page.locator(self.locators['callSearch']).fill(str(phonenumber))
-        self.page.locator(self.locators['callButton']).click()
+        call_button = self.page.locator(self.locators['callButton'])
+        for attempt in range(3):
+            self._dismiss_blocking_modal()  # stray popups intercept clicks
+            self._open_dialer()
+            self.page.locator(self.locators['callSearch']).fill(str(phonenumber))
+            try:
+                call_button.wait_for(state="visible", timeout=10000)
+                break
+            except Exception:
+                # dialer closed or never showed the call button; reopen and retry
+                print(f"Call button not visible (attempt {attempt + 1}), reopening dialer")
+                self.page.keyboard.press("Escape")
+        call_button.click()
 
     def hang_up(self):
         self.page.wait_for_selector('[data-name="Phone Hang Up"]',
@@ -35,15 +45,22 @@ class DpAppPage:
         self.page.wait_for_selector('[data-name="Phone Hang Up"]',
                                     state='visible',
                                     timeout=10000)
-        self.page.click('[data-name = "Phone Hang Up"]', force=True)
+        try:
+            self.page.click('[data-name = "Phone Hang Up"]', force=True, timeout=10000)
+        except Exception:
+            # button can sit outside the viewport; fire the click directly
+            self.page.locator('[data-name="Phone Hang Up"]').first.dispatch_event("click")
         print('Phone hanged up successfully')
         time.sleep(12)
 
     def receive_call(self):
-        button = self.page.wait_for_selector('text="Accept"',
-                                             state='visible',
-                                             timeout=25000)
-        button.click()
+        # locator (not an element handle) so a re-rendered Accept button is re-resolved
+        button = self.page.locator('text="Accept"').first
+        button.wait_for(state='visible', timeout=25000)
+        try:
+            button.click(timeout=10000)
+        except Exception:
+            button.click(force=True, timeout=10000)
         print('Clicked Answer button')
         time.sleep(5)
 
@@ -113,8 +130,22 @@ class DpAppPage:
         time.sleep(1000)
         self.page.locator(self.locators['messageSendButton']).click()
 
+    def _open_dialer(self):
+        button = self.page.locator(self.locators['makeCallButton'])
+        try:
+            button.click(timeout=10000)
+        except Exception:
+            # a modal can pop up late; clear it and retry
+            self._dismiss_blocking_modal(timeout=3000)
+            self.page.keyboard.press("Escape")
+            try:
+                button.click(timeout=10000)
+            except Exception:
+                button.dispatch_event("click")
+
     def makeOutboundAs(self, phoneNumber, departmentName):
-        self.page.locator(self.locators['makeCallButton']).click()
+        self._dismiss_blocking_modal()
+        self._open_dialer()
         self.page.locator(self.locators['newCallAsButton']).click()
         # Format the XPath with the department name
         call_as_xpath = self.locators['callAs'].format(departmentName)
@@ -123,9 +154,21 @@ class DpAppPage:
         self.page.locator(self.locators['callSearch']).fill(str(phoneNumber))
         self.page.locator(self.locators['callButton']).click()
 
+    @staticmethod
+    def _click_through_overlay(locator, timeout=5000):
+        """Click; if a popover (e.g. the live-transcript tippy) intercepts the pointer, close it, then dispatch the click."""
+        try:
+            locator.click(timeout=timeout)
+        except Exception:
+            locator.page.keyboard.press("Escape")
+            try:
+                locator.click(timeout=timeout)
+            except Exception:
+                locator.dispatch_event("click")
+
     def sendMessage(self):
         self.page.locator(self.locators['messageInput']).fill("Test message")
-        self.page.locator(self.locators['messageSendButton']).click()
+        self._click_through_overlay(self.page.locator(self.locators['messageSendButton']))
 
     def send_image_by_upload(self):
         self.page.locator(self.locators['messageInput']).click()
@@ -145,6 +188,85 @@ class DpAppPage:
         self.page.locator(self.locators['messageSendButton']).click()
 
         time.sleep(3)  # wait for UI update
+
+    # ---- in-call AI / live transcript ----
+    TRANSCRIPT = ".transcription-list-live__transcript"
+
+    def _ai_callbar_button(self):
+        # the call bar button reads "AI Off" while disabled and "AI" while enabled
+        return self.page.locator('[data-qa="dp-callbar-button"]').filter(
+            has_text=re.compile(r"^\s*AI( Off)?\s*$")
+        ).first
+
+    def _ai_switch(self):
+        return self.page.get_by_role("switch", name=re.compile("AI", re.I)).first
+
+    def is_ai_on(self):
+        return (self._ai_callbar_button().inner_text() or "").strip() == "AI"
+
+    def _set_ai(self, on):
+        button = self._ai_callbar_button()
+        button.wait_for(state="visible", timeout=20000)
+        if self.is_ai_on() == on:
+            return
+        self.open_transcript()  # no-op if the popover is already open (a click would close it)
+        switch = self._ai_switch()
+        switch.wait_for(state="visible", timeout=10000)
+        if (switch.get_attribute("aria-checked") == "true") != on:
+            try:
+                switch.click(timeout=5000)
+            except Exception:
+                # overlay intercepts the pointer; Escape would close the popover, so click directly
+                switch.dispatch_event("click", timeout=5000)
+        self.page.wait_for_timeout(1000)
+        self.page.keyboard.press("Escape")  # close the popover
+        print(f"AI turned {'on' if on else 'off'}")
+
+    def enable_ai(self):
+        self._set_ai(True)
+
+    def disable_ai(self):
+        self._set_ai(False)
+
+    def open_transcript(self):
+        """Open the AI popover from the call bar (no-op if it is already open)."""
+        if not self._ai_switch().is_visible():
+            self._ai_callbar_button().click()
+            self._ai_switch().wait_for(state="visible", timeout=15000)
+
+    def read_transcript(self):
+        """Current live transcript text, '' while nothing has been transcribed yet (the container only exists once there is text)."""
+        self.open_transcript()
+        transcript = self.page.locator(self.TRANSCRIPT).first
+        try:
+            transcript.wait_for(state="visible", timeout=3000)
+        except Exception:
+            return ""
+        return " ".join(transcript.inner_text().split())
+
+    def wait_for_any_transcript(self, timeout=60):
+        """Poll until some transcript text exists; returns it ('' on timeout)."""
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            transcript = self.read_transcript()
+            if transcript:
+                return transcript
+            time.sleep(2)
+        return ""
+
+    def wait_for_transcript_text(self, text, timeout=60):
+        """Poll the live transcript until it contains `text` (case-insensitive); returns the transcript either way."""
+        deadline = time.time() + timeout
+        transcript = ""
+        while time.time() < deadline:
+            try:
+                transcript = self.read_transcript()
+            except Exception:
+                transcript = ""
+            if text.lower() in transcript.lower():
+                break
+            time.sleep(2)
+        return transcript
 
     def play_audio(self, filename):
         data, samplerate = sf.read(filename)

@@ -1,0 +1,8 @@
+Test run 2026-10-06 16:32:52
+Summary: PASS=1, FAIL=1, ERROR=0, NOT AUTOMATED=0, SKIPPED=0, total=2
+
+[PASS] Geo-Routing: call routing to CC 24x7
+    tests/geo_routing/test_geo_routing_cc.py::TestGeoRoutingCc::test_call_routing_cc_24x7 (49.7s)
+[FAIL] Geo-Routing: call routing to CC in business hours
+    tests/geo_routing/test_geo_routing_cc.py::TestGeoRoutingCc::test_business_hours_change (87.5s)
+    ../../../Downloads/QA-Retention/.venv/.venv/lib/python3.14/site-packages/playwright/_impl/_connection.py:558: Error

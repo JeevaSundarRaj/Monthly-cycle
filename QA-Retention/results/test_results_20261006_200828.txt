@@ -1,0 +1,6 @@
+Test run 2026-10-06 20:08:28
+Summary: PASS=0, FAIL=1, ERROR=0, NOT AUTOMATED=0, SKIPPED=0, total=1
+
+[FAIL] Geo-Routing: inbound call with Voice AI (enable/disable)
+    tests/geo_routing/test_geo_routing_cc.py::TestGeoRoutingCc::test_ai_on_off_transcription (141.0s)
+    tests/geo_routing/test_geo_routing_cc.py:67: AssertionError

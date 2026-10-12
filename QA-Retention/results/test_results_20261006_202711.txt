@@ -1,0 +1,6 @@
+Test run 2026-10-06 20:27:11
+Summary: PASS=0, FAIL=1, ERROR=0, NOT AUTOMATED=0, SKIPPED=0, total=1
+
+[FAIL] Geo-Routing: inbound call with Voice AI (enable/disable)
+    tests/geo_routing/test_geo_routing_cc.py::TestGeoRoutingCc::test_ai_on_off_transcription (145.4s)
+    /Library/Frameworks/Python.framework/Versions/3.14/lib/python3.14/site-packages/playwright/_impl/_connection.py:559: TimeoutError

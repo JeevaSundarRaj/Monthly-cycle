@@ -1,0 +1,12 @@
+Test run 2026-10-06 20:03:49
+Summary: PASS=3, FAIL=1, ERROR=0, NOT AUTOMATED=0, SKIPPED=0, total=4
+
+[PASS] CM & LCC: duplicate and delete card
+    tests/ai_cards/test_ai_settings.py::TestAiCards::test_duplicate_and_delete[cm] (19.4s)
+[FAIL] Geo-Routing: inbound call with Voice AI (enable/disable)
+    tests/geo_routing/test_geo_routing_cc.py::TestGeoRoutingCc::test_ai_on_off_transcription (131.6s)
+    tests/geo_routing/test_geo_routing_cc.py:67: AssertionError
+[PASS] Retention: individual/inherited policy Options 1-3 (CT call flow)
+    tests/retention/test_calls.py::TestCTPolicies::test_ct_calls[inherited_policies-Option 3: Remove content and personally identifiable information-info5] (219.4s)
+[PASS] Retention: set policy for Department (admin)
+    tests/retention/test_admin_policy.py::TestAdminRetentionPolicySettings::test_department_retention_policy (22.9s)

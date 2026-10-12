@@ -1,4 +1,4 @@
-from playwright.sync_api import Page
+from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError
 import json
 
 
@@ -11,7 +11,11 @@ class LoginPage:
         with open('pages/elements/locators.json') as f:
             self.locators = json.load(f)
 
-        self.page.goto(url)
+        try:
+            self.page.goto(url, wait_until="domcontentloaded", timeout=60000)
+        except PlaywrightTimeoutError:
+            print("Navigation timed out, retrying...")
+            self.page.goto(url, wait_until="domcontentloaded", timeout=60000)
 
         self.page.wait_for_timeout(3000)
 
