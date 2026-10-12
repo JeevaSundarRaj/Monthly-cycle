@@ -1,3 +1,15 @@
-Test run 2026-10-12 11:54:52
-Summary: PASS=0, FAIL=0, ERROR=0, NOT AUTOMATED=0, SKIPPED=0, total=0
+Test run 2026-10-12 14:05:55
+Summary: PASS=3, FAIL=0, ERROR=0, NOT AUTOMATED=2, SKIPPED=0, total=5
 
+[NOT AUTOMATED] Retention: inherit office policy for Department and CT
+    tests/retention/test_admin_policy.py::TestRetentionPolicyGaps::test_inherit_office_policy_for_department_and_ct (0.0s)
+    TODO: Department/CT inherit the office policy - needs an office-policy flow in AdminRetentionPage
+[NOT AUTOMATED] Retention: remove policy from Retention Policy page
+    tests/retention/test_admin_policy.py::TestRetentionPolicyGaps::test_remove_policy_from_retention_policy_page (0.0s)
+    TODO: remove policy from the Retention Policy page - needs locators for that page
+[PASS] Retention: set new policy for Call centre
+    tests/retention/test_admin_policy.py::TestAdminRetentionPolicySettings::test_contact_center_retention_policy (25.3s)
+[PASS] Retention: set policy for Coaching Team (admin)
+    tests/retention/test_admin_policy.py::TestAdminRetentionPolicySettings::test_coaching_team_retention_policy (27.4s)
+[PASS] Retention: set policy for Department (admin)
+    tests/retention/test_admin_policy.py::TestAdminRetentionPolicySettings::test_department_retention_policy (24.0s)
