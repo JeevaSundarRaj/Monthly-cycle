@@ -3,7 +3,7 @@ import os
 import pytest
 from playwright.sync_api import sync_playwright
 
-from utils.call_recorder import write_csv
+from utils.call_recorder import write_csv, write_xlsx
 from utils.result_logger import format_console_summary, record_report, write_results
 
 
@@ -29,6 +29,8 @@ def pytest_sessionfinish(session, exitstatus):
     print(f"\nWrote {n} test results to {path}")
     count = write_csv("call_summary.csv")
     print(f"\nWrote {count} call entries to call_summary.csv")
+    rows = write_xlsx("call_summary.xlsx")
+    print(f"Wrote {rows} call rows to call_summary.xlsx")
 
 
 @pytest.fixture(scope='function')

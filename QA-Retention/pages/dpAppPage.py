@@ -271,8 +271,13 @@ class DpAppPage:
     def play_audio(self, filename):
         data, samplerate = sf.read(filename)
         print(f"Playing audio: {filename}")
-        sd.play(data, samplerate)
-        sd.wait()
+        try:
+            sd.play(data, samplerate)
+            sd.wait()
+        except sd.PortAudioError:
+            # no sound device (headless CI): the browser uses a fake mic, so just hold for the clip's length
+            print("No audio output device; waiting for the clip duration instead")
+            time.sleep(len(data) / samplerate)
         print("Playback finished.")
 
     def _scroll_to_and_click_link(self, name, timeout=20000):

@@ -12,3 +12,4 @@ call.logs
 call_logs_*.xlsx
 call_summary.csv
 output.json
+call_summary.xlsx

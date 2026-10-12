@@ -1,6 +1,7 @@
 import re
 import time
 
+import pytest
 
 from pages.contactCenterPage import ContactCenterPage
 from tests.geo_routing.helpers import CC_NAME, _assert_incoming_notification, _wait_for_text
@@ -32,6 +33,7 @@ def _call_cc_while_24x7(env, cc):
         env.ext_app.hang_up()
 
 
+@pytest.mark.calls
 class TestGeoRoutingCc:
 
     def test_call_routing_cc_24x7(self, geo_env):

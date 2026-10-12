@@ -1,6 +1,9 @@
 import csv
 import threading
 
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Font
+
 _lock = threading.Lock()
 _rows = []  # (name, call_type, url)
 _seen = set()  # (name, call_type) already recorded
@@ -34,3 +37,27 @@ def write_csv(path="call_summary.csv"):
         for name, calls in grouped.items():
             writer.writerow([name, "\n".join(calls)])
     return len(grouped)
+
+
+def write_xlsx(path="call_summary.xlsx"):
+    """Same grouping as the CSV, as a workbook with one clickable link per call."""
+    with _lock:
+        rows = list(_rows)
+    if not rows:
+        return 0
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Calls"
+    ws.append(["Name", "Call Type", "Call URL"])
+    for cell in ws[1]:
+        cell.font = Font(bold=True)
+    for name, call_type, url in rows:
+        ws.append([name, call_type, url])
+        link = ws.cell(row=ws.max_row, column=3)
+        link.hyperlink = url
+        link.font = Font(color="0563C1", underline="single")
+        link.alignment = Alignment(vertical="top")
+    for col, width in zip("ABC", (45, 12, 70)):
+        ws.column_dimensions[col].width = width
+    wb.save(path)
+    return len(rows)

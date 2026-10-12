@@ -7,7 +7,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 240
     env:
       CI: "true"
     defaults:
@@ -25,8 +25,16 @@ jobs:
         run: |
           grep -v -i '^pyobjc\|^pyperclipimg' requirements.txt > req-ci.txt
           pip install -r req-ci.txt
-          sudo apt-get update && sudo apt-get install -y libportaudio2 libsndfile1
+          sudo apt-get update && sudo apt-get install -y libportaudio2 libsndfile1 pulseaudio libasound2-plugins
           playwright install --with-deps chrome
+
+      - name: Start virtual audio device
+        run: |
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=ci_sink
+          pactl set-default-sink ci_sink
+          printf 'pcm.!default pulse\nctl.!default pulse\n' > ~/.asoundrc
+          python -c "import sounddevice as sd; print(sd.query_devices())"
 
       - name: Write credentials
         env:
@@ -39,7 +47,7 @@ jobs:
             || { echo "::error::USER_CRED_JSON secret is not valid JSON (empty, truncated, or duplicated braces)"; exit 1; }
 
       - name: Run tests
-        run: pytest tests -m "not calls" -s
+        run: pytest tests -s
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -49,3 +57,4 @@ jobs:
             QA-Retention/report/
             QA-Retention/results/
             QA-Retention/call_summary.csv
+            QA-Retention/call_summary.xlsx

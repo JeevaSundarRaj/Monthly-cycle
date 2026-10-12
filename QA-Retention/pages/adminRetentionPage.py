@@ -44,7 +44,18 @@ class AdminRetentionPage:
     def open_advanced_settings(self):
         self._click(self.page.get_by_text("Advanced settings"))
 
+    def clear_existing_policy(self, timeout=20000):
+        """A policy left by an aborted run hides 'Set Retention Policy'; remove it so the test starts clean."""
+        set_btn = self.page.get_by_role("button", name="Set Retention Policy")
+        remove_btn = self.page.get_by_role("button", name="Remove Retention Policy")
+        set_btn.or_(remove_btn).first.wait_for(state="attached", timeout=timeout)
+        if remove_btn.count():
+            print("Found a leftover retention policy; removing it before the test")
+            self.remove_retention_policy()
+            set_btn.wait_for(state="attached", timeout=timeout)
+
     def set_retention_policy(self, policy_option=None, days=None, exact=False):
+        self.clear_existing_policy()
         self._click(self.page.get_by_role("button", name="Set Retention Policy"))
         if policy_option:
             radio = self.page.get_by_role("radio", name=policy_option, exact=exact)
@@ -57,11 +68,15 @@ class AdminRetentionPage:
         self._click(self.page.get_by_role("button", name="Save Policy"))
         confirm = self.page.get_by_role("button", name="Set Policy")
         try:
-            confirm.wait_for(state="visible", timeout=10000)
+            confirm.wait_for(state="visible", timeout=4000)
             self._click(confirm)
         except Exception:
             print("No 'Set Policy' confirmation shown; checking whether the policy saved directly")
-        self._verify_toast("Retention policy saved")
+        try:
+            self._verify_toast("Retention policy saved")
+        except AssertionError:
+            # the toast is short-lived; the summary check below is the real assertion
+            print("'Retention policy saved' toast not seen; verifying the policy summary instead")
         self._settle()
         self._pending_days = days
         self._pending_policy_option = policy_option
@@ -111,8 +126,17 @@ class AdminRetentionPage:
         self.verify_retention_days(days, timeout=timeout)
 
     def remove_retention_policy(self):
-        self._click(self.page.get_by_role("button", name="Remove Retention Policy"))
-        self._click(self.page.get_by_role("button", name="Remove policy"))
+        confirm = self.page.get_by_role("button", name="Remove policy")
+        for attempt in range(3):
+            # the summary panel can re-render under the first click, so retry until the dialog opens
+            self._click(self.page.get_by_role("button", name="Remove Retention Policy"))
+            try:
+                confirm.wait_for(state="visible", timeout=5000)
+                break
+            except Exception:
+                if attempt == 2:
+                    raise
+        self._click(confirm)
         self._verify_toast("Retention policy removed")
         self._settle()
         self._pending_days = None

@@ -87,7 +87,7 @@ Test-plan names come from `PLAN_CASES` in `utils/result_logger.py`. Add an entry
 
 ## GitHub Actions
 
-Example workflow (`.github/workflows/tests.yml`): store the contents of `data/userCred.json` in a repository secret named `USER_CRED_JSON`, write it to `data/userCred.json` before the run, set `CI=true`, run `pytest tests -m "not calls"`, and upload `report/`, `results/` and `call_summary.csv` as artifacts.
+Example workflow (`.github/workflows/tests.yml`): store the contents of `data/userCred.json` in a repository secret named `USER_CRED_JSON`, write it to `data/userCred.json` before the run, set `CI=true`, run `pytest tests`, and upload `report/`, `results/` and `call_summary.csv` as artifacts.
 
 ## Adding a test
 
