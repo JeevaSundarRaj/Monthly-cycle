@@ -2,10 +2,26 @@ name: Tests
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 3 * * *"
+    - cron: "0 3 * * 5"
 
 jobs:
+  gate:
+    # Cron fires every Friday; only proceed on manual runs or the first Friday (day 1-7)
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.check.outputs.run }}
+    steps:
+      - id: check
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$(date -u +%-d)" -le 7 ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
   test:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 240
     env:
@@ -48,6 +64,12 @@ jobs:
 
       - name: Run tests
         run: pytest tests -s
+
+      - name: Verify call links CSV and report exist
+        if: always()
+        run: |
+          test -s call_summary.csv || { echo "::error::call_summary.csv missing or empty"; exit 1; }
+          test -s report/report.html || { echo "::error::report/report.html missing"; exit 1; }
 
       - uses: actions/upload-artifact@v4
         if: always()

@@ -76,9 +76,9 @@ class AiSettingsPage:
         expect(box).to_have_value(text)
 
     def fill_rep_response(self, text):
-        box = self.page.get_by_role("textbox", name="Rep response")
+        box = self.page.get_by_role("textbox", name="Card content")
         box.fill(text)
-        expect(box).to_have_value(text)
+        expect(box).to_have_text(text)  # rich-text editor, not an <input>, so no value
 
     def add_link(self, url, link_name):
         url_box = self.page.get_by_role("textbox", name="Add a link (Optional) Paste")

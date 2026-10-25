@@ -26,14 +26,31 @@ class CallEntity:
 def _record_call_id(helper, conf, bearer_token, entity, label, call_type, desc):
     if not bearer_token:
         print(f"Skipped fetching Call ID for '{entity.name}' ({desc}) as bearer token was not available.")
-        return
+        return True
     callid = helper.get_callId(
         url=conf.get('DEFAULT', 'ACTIVE_CALLS_API'),
         headers=helper.get_headers(method_type="get", bearer_token=bearer_token,
                                    user_id=conf.get('USER ID', f'{entity.operator}')),
         key_path="0.entry_point_call_id")
     print(f"{label} Call id for '{entity.name}' ({desc}): https://dialpadbeta.com/csr/call/{callid}")
+    if not callid:
+        return False
     record_call(entity.name, call_type, callid)
+    return True
+
+
+MAX_CALL_ATTEMPTS = 3
+
+
+def _with_retry(entity, label, desc, leg):
+    """Run a call leg; if its call id could not be fetched, place the call again."""
+    for attempt in range(1, MAX_CALL_ATTEMPTS + 1):
+        if leg():
+            return
+        print(f"No call id for {label} '{entity.name}' ({desc}); redoing call "
+              f"(attempt {attempt}/{MAX_CALL_ATTEMPTS})")
+        time.sleep(5)
+    print(f"Giving up on call id for {label} '{entity.name}' ({desc}) after {MAX_CALL_ATTEMPTS} attempts")
 
 
 def run_call_scenario(user_context, entity: CallEntity, desc: str):
@@ -71,39 +88,49 @@ def run_call_scenario(user_context, entity: CallEntity, desc: str):
             time.sleep(5)
 
         # ---------- Inbound ----------
-        external_call_page.make_call(str(entity.number))
-        operator_call_page.receive_call()
-        external_call_page.mute()
-        operator_call_page.play_audio('data/testvoice2.mp3')
-        external_call_page.sendMessage()
-        _record_call_id(helper, conf, bearer_token, entity, "Inbound", "Inbound", desc)
-        operator_call_page.hang_up()
-        time.sleep(5)
+        def inbound():
+            external_call_page.make_call(str(entity.number))
+            operator_call_page.receive_call()
+            external_call_page.mute()
+            operator_call_page.play_audio('data/testvoice2.mp3')
+            external_call_page.sendMessage()
+            ok = _record_call_id(helper, conf, bearer_token, entity, "Inbound", "Inbound", desc)
+            operator_call_page.hang_up()
+            time.sleep(5)
+            return ok
+        _with_retry(entity, "Inbound", desc, inbound)
 
         # ---------- Outbound ----------
-        if entity.outbound_as_entity:
-            operator_call_page.makeOutboundAs(external_user['phoneNumber'], entity.name)
-        else:
-            operator_call_page.make_call(external_user['phoneNumber'])
-        external_call_page.receive_call()
-        operator_call_page.mute()
-        external_call_page.play_audio('data/testvoice2.mp3')
-        external_call_page.sendMessage()
-        if entity.outbound_post_wait:
-            time.sleep(entity.outbound_post_wait)
-        _record_call_id(helper, conf, bearer_token, entity, "Outbound", "Outbound", desc)
-        operator_call_page.hang_up()
-        time.sleep(5)
+        def outbound():
+            if entity.outbound_as_entity:
+                operator_call_page.makeOutboundAs(external_user['phoneNumber'], entity.name)
+            else:
+                operator_call_page.make_call(external_user['phoneNumber'])
+            external_call_page.receive_call()
+            operator_call_page.mute()
+            external_call_page.play_audio('data/testvoice2.mp3')
+            external_call_page.sendMessage()
+            if entity.outbound_post_wait:
+                time.sleep(entity.outbound_post_wait)
+            ok = _record_call_id(helper, conf, bearer_token, entity, "Outbound", "Outbound", desc)
+            operator_call_page.hang_up()
+            time.sleep(5)
+            return ok
+        _with_retry(entity, "Outbound", desc, outbound)
 
         # ---------- Missed and voicemail ----------
-        external_call_page.make_call(str(entity.number))
-        external_call_page.sendMessage()
-        time.sleep(entity.vm_pre_decline_wait)
-        _record_call_id(helper, conf, bearer_token, entity, "Missed and voicemail", "VM", desc)
-        operator_call_page.decline_call()
-        time.sleep(entity.vm_post_decline_wait)
-        external_call_page.play_audio('data/testvoice.mp3')
-        external_call_page.hang_up()
+        def voicemail():
+            external_call_page.make_call(str(entity.number))
+            external_call_page.sendMessage()
+            time.sleep(entity.vm_pre_decline_wait)
+            ok = _record_call_id(helper, conf, bearer_token, entity, "Missed and voicemail", "VM", desc)
+            operator_call_page.decline_call()
+            time.sleep(entity.vm_post_decline_wait)
+            external_call_page.play_audio('data/testvoice.mp3')
+            external_call_page.hang_up()
+            time.sleep(5)
+            return ok
+        _with_retry(entity, "Missed and voicemail", desc, voicemail)
     finally:
         try:
             if operator_call_page:
