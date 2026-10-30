@@ -1,25 +1,5 @@
-Test run 2026-10-23 16:06:02
-Summary: PASS=11, FAIL=0, ERROR=0, NOT AUTOMATED=0, SKIPPED=0, total=11
+Test run 2026-10-31 04:49:48
+Summary: PASS=1, FAIL=0, ERROR=0, NOT AUTOMATED=0, SKIPPED=0, total=1
 
-[PASS] CM & LCC: create new card from scratch
-    tests/ai_cards/test_ai_settings.py::TestAiCards::test_create_from_scratch[cm] (15.6s)
-[PASS] CM & LCC: create new card from scratch
-    tests/ai_cards/test_ai_settings.py::TestAiCards::test_create_from_scratch[lcc] (15.3s)
-[PASS] CM & LCC: duplicate and delete card
-    tests/ai_cards/test_ai_settings.py::TestAiCards::test_duplicate_and_delete[cm] (18.9s)
-[PASS] CM & LCC: duplicate and delete card
-    tests/ai_cards/test_ai_settings.py::TestAiCards::test_duplicate_and_delete[lcc] (18.8s)
-[PASS] CM & LCC: edit and delete card
-    tests/ai_cards/test_ai_settings.py::TestAiCards::test_edit_and_delete[cm] (16.7s)
-[PASS] CM & LCC: edit and delete card
-    tests/ai_cards/test_ai_settings.py::TestAiCards::test_edit_and_delete[lcc] (16.8s)
-[PASS] LCC: create card from template
-    tests/ai_cards/test_ai_settings.py::TestAiCardsFromTemplate::test_create_from_template[cm] (15.9s)
-[PASS] LCC: create card from template
-    tests/ai_cards/test_ai_settings.py::TestAiCardsFromTemplate::test_create_from_template[lcc] (17.7s)
-[PASS] LCC: preview live coach card
-    tests/ai_cards/test_ai_settings.py::TestAiCardPreview::test_live_coach_card_preview (15.3s)
-[PASS] LCC: preview/edit/delete card from template
-    tests/ai_cards/test_ai_settings.py::TestAiCardsFromTemplate::test_template_card_edit_delete[cm] (16.6s)
-[PASS] LCC: preview/edit/delete card from template
-    tests/ai_cards/test_ai_settings.py::TestAiCardsFromTemplate::test_template_card_edit_delete[lcc] (17.4s)
+[PASS] Retention: remove policy from Retention Policy page
+    tests/retention/test_admin_policy.py::TestAdminRetentionPolicySettings::test_remove_policy_from_retention_policy_page (24.8s)

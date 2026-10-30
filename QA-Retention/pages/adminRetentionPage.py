@@ -12,7 +12,16 @@ class AdminRetentionPage:
     def _click(self, locator, timeout=15000):
         locator.wait_for(state="attached", timeout=timeout)
         locator.wait_for(state="visible", timeout=timeout)
-        locator.click(force=True)
+        for attempt in range(3):
+            try:
+                locator.scroll_into_view_if_needed(timeout=timeout)
+                locator.click(force=True, timeout=timeout)
+                return
+            except Exception as e:
+                # the summary panel can re-render under the click (element detached / outside viewport)
+                if attempt == 2 or "outside of the viewport" not in str(e):
+                    raise
+                time.sleep(1)
 
     def _settle(self):
         time.sleep(3)  # policy summary panel reloads after a confirm action
@@ -32,14 +41,29 @@ class AdminRetentionPage:
     def open_coaching_teams(self):
         self._click(self.page.get_by_role("link", name="Coaching Teams"))
 
+    def open_office(self):
+        self._click(self.page.get_by_role("link", name="Office", exact=True))
+
+    def open_retention_policy_page(self):
+        item = self.page.locator(".sidebar-list-row").get_by_text("Retention Policy", exact=True)
+        for attempt in range(3):
+            # the item can look selected while the office settings page is showing, so the first click may be a no-op
+            self._click(item)
+            try:
+                self.page.wait_for_url("**/office/retention_policy", timeout=5000)
+                return
+            except Exception:
+                if attempt == 2:
+                    raise
+
     def select_department(self, department_name):
-        self._click(self.page.get_by_text(department_name))
+        self._click(self.page.get_by_text(department_name, exact=True).first)
 
     def select_contact_center(self, cc_name):
-        self._click(self.page.get_by_text(cc_name))
+        self._click(self.page.get_by_text(cc_name, exact=True).first)
 
     def select_coaching_team(self, ct_name):
-        self._click(self.page.get_by_text(ct_name))
+        self._click(self.page.get_by_text(ct_name, exact=True).first)
 
     def open_advanced_settings(self):
         self._click(self.page.get_by_text("Advanced settings"))
@@ -51,8 +75,24 @@ class AdminRetentionPage:
         set_btn.or_(remove_btn).first.wait_for(state="attached", timeout=timeout)
         if remove_btn.count():
             print("Found a leftover retention policy; removing it before the test")
-            self.remove_retention_policy()
+            self.clear_all_policies()
             set_btn.wait_for(state="attached", timeout=timeout)
+
+    def clear_all_policies(self):
+        """Remove the policy on this entity whichever dialog shows (office parent or not); no-op if none is set."""
+        set_btn = self.page.get_by_role("button", name="Set Retention Policy")
+        remove_btn = self.page.get_by_role("button", name="Remove Retention Policy")
+        set_btn.or_(remove_btn).first.wait_for(state="attached", timeout=20000)
+        if not remove_btn.count():
+            return
+        plain = self.page.get_by_role("button", name="Remove policy")
+        all_btn = self.page.get_by_role("button", name="Remove all retention policies")
+        self._open_remove_dialog(plain.or_(all_btn).first)
+        self._click(plain.or_(all_btn).first)
+        self._verify_toast("Retention policy removed")
+        self._settle()
+        self._pending_days = None
+        self._pending_policy_option = None
 
     def set_retention_policy(self, policy_option=None, days=None, exact=False):
         self.clear_existing_policy()
@@ -125,19 +165,36 @@ class AdminRetentionPage:
             expect(self.page.get_by_text(policy_option).first).to_be_visible(timeout=timeout)
         self.verify_retention_days(days, timeout=timeout)
 
-    def remove_retention_policy(self):
-        confirm = self.page.get_by_role("button", name="Remove policy")
+    def verify_policy_inherited(self, days, timeout=20000):
+        expect(self.page.get_by_text("This retention policy is")).to_be_visible(timeout=timeout)
+        self.verify_retention_days(days, timeout=timeout)
+
+    def _open_remove_dialog(self, expected):
         for attempt in range(3):
             # the summary panel can re-render under the first click, so retry until the dialog opens
             self._click(self.page.get_by_role("button", name="Remove Retention Policy"))
             try:
-                confirm.wait_for(state="visible", timeout=5000)
-                break
+                expected.wait_for(state="visible", timeout=5000)
+                return
             except Exception:
                 if attempt == 2:
                     raise
+
+    def remove_retention_policy(self, confirm_name="Remove policy", exact=False):
+        """confirm_name: 'Remove this policy and inherit' / 'Remove all retention policies' when a parent (office) policy exists."""
+        confirm = self.page.get_by_role("button", name=confirm_name, exact=exact)
+        self._open_remove_dialog(confirm)
         self._click(confirm)
         self._verify_toast("Retention policy removed")
         self._settle()
         self._pending_days = None
         self._pending_policy_option = None
+
+    def cancel_remove_policy(self):
+        cancel = self.page.get_by_role("button", name="Cancel")
+        self._open_remove_dialog(cancel)
+        self._click(cancel)
+        expect(cancel).to_be_hidden(timeout=10000)
+
+    def verify_no_policy(self, timeout=20000):
+        expect(self.page.get_by_role("button", name="Set Retention Policy")).to_be_visible(timeout=timeout)
