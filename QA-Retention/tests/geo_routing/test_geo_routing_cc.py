@@ -30,7 +30,7 @@ def _call_cc_while_24x7(env, cc):
         env.ext_app.mute()  # only the shared mic -> admin side carries the audio
         env.admin_app.play_audio('data/testvoice.mp3')
     finally:
-        env.ext_app.hang_up()
+        env.ext_app.hang_up(missing_ok=True)
 
 
 @pytest.mark.calls
@@ -79,7 +79,7 @@ class TestGeoRoutingCc:
                 f"Transcript kept growing after AI was turned off: {transcript_on!r} -> {transcript_off!r}"
             )
         finally:
-            env.ext_app.hang_up()
+            env.ext_app.hang_up(missing_ok=True)
 
     def test_business_hours_change(self, geo_env):
         """Corona caller -> CC twice: 24/7 connects to the agent (audio played), specific hours (closed) does not."""
@@ -103,7 +103,7 @@ class TestGeoRoutingCc:
                                      timeout=15)
             assert not ringing, "Call rang the agent even though the CC is on 'Only during specific hours'"
         finally:
-            env.ext_app.hang_up()
+            env.ext_app.hang_up(missing_ok=True)
 
     def test_closed_hours_transcription(self, geo_env):
         """With 'Only during specific hours' and the CC closed, the corona caller's transcript says no one is available."""
@@ -124,4 +124,4 @@ class TestGeoRoutingCc:
                 f"got: {transcript!r}"
             )
         finally:
-            env.ext_app.hang_up()
+            env.ext_app.hang_up(missing_ok=True)

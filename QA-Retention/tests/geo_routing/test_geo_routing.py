@@ -66,14 +66,14 @@ class TestGeoRouting:
                 print(f"Admin page URL: {admin_page.url}")
                 raise
             finally:
-                ext_app.hang_up()  # caller cancels, even if the assertion failed
+                ext_app.hang_up(missing_ok=True)  # caller cancels, even if the assertion failed
 
             # ---- automation user2 -> test dept (fallback) ----
             user2_app.make_call(geo_number)
             try:
                 _assert_incoming_notification(admin_page, DEPT_NAME)
             finally:
-                user2_app.hang_up()
+                user2_app.hang_up(missing_ok=True)
         finally:
             try:
                 if created and admin_page:

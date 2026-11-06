@@ -37,10 +37,17 @@ class DpAppPage:
                 self.page.keyboard.press("Escape")
         call_button.click()
 
-    def hang_up(self):
-        self.page.wait_for_selector('[data-name="Phone Hang Up"]',
-                                    state='attached',
-                                    timeout=10000)
+    def hang_up(self, missing_ok=False):
+        """missing_ok: cleanup path - no hang-up button just means there is no call to end."""
+        try:
+            self.page.wait_for_selector('[data-name="Phone Hang Up"]',
+                                        state='attached',
+                                        timeout=10000)
+        except Exception:
+            if missing_ok:
+                print('No active call to hang up')
+                return
+            raise
         self.page.wait_for_selector('[data-name="Phone Hang Up"]',
                                     state='visible',
                                     timeout=10000)
