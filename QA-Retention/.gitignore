@@ -17,3 +17,4 @@ call_summary.xlsx
 
 # screenshots
 *.png
+data/userCred.json
