@@ -2,22 +2,30 @@ name: Monthly_cycle
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 3 * * 5"
+    - cron: "0 3 * * 3"  # Wednesday: full cycle (first Wednesday of month)
+    - cron: "0 3 * * 5"  # Friday: inbox check only (2 days after first Wednesday)
 
 jobs:
   gate:
-    # Cron fires every Friday; only proceed on manual runs or the first Friday (day 1-7)
+    # Cron fires every Wed and Fri. Proceed on manual runs, the first Wednesday
+    # (day 1-7, full cycle), or the Friday 2 days after it (day 3-9, inbox only).
     runs-on: ubuntu-24.04
     outputs:
       run: ${{ steps.check.outputs.run }}
+      mode: ${{ steps.check.outputs.mode }}
     steps:
       - id: check
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$(date -u +%-d)" -le 7 ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=false" >> "$GITHUB_OUTPUT"
+          day=$(date -u +%-d); dow=$(date -u +%u); run=false; mode=full
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            run=true
+          elif [ "$dow" = "3" ] && [ "$day" -le 7 ]; then
+            run=true
+          elif [ "$dow" = "5" ] && [ "$day" -ge 3 ] && [ "$day" -le 9 ]; then
+            run=true; mode=inbox
           fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
 
   test:
     needs: gate
@@ -63,10 +71,17 @@ jobs:
             || { echo "::error::USER_CRED_JSON secret is not valid JSON (empty, truncated, or duplicated braces)"; exit 1; }
 
       - name: Run tests
-        run: set -o pipefail; pytest tests -s 2>&1 | tee pytest_output.log
+        run: |
+          set -o pipefail
+          if [ "${{ needs.gate.outputs.mode }}" = "inbox" ]; then
+            target=tests/retention/test_inbox.py
+          else
+            target=tests
+          fi
+          pytest "$target" -s 2>&1 | tee pytest_output.log
 
       - name: Verify call links CSV and report exist
-        if: always()
+        if: always() && needs.gate.outputs.mode != 'inbox'
         run: |
           test -s call_summary.csv || { echo "::error::call_summary.csv missing or empty"; exit 1; }
           test -s report/report.html || { echo "::error::report/report.html missing"; exit 1; }
